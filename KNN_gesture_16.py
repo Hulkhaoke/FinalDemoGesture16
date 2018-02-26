@@ -5,7 +5,7 @@ import math
 import operator
 import os
 quality = 16
-
+print "hhhhhh"
 
 def convert_pix(image):
     img_pix = image.copy()
