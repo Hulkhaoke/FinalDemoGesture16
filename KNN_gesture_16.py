@@ -73,14 +73,14 @@ command = ['Forward', 'Backward', 'Left', 'Right',
            'Roll Left', 'Roll Right',
            'Takeoff/landing']
 
-cmd_adb = ['370 570 190 570 100', '370 570 550 570 100', '370 570 370 390 100', '370 570 370 750 100',
-           '1425 570 1245 570 100', '1425 570 1605 570 100', '1425 570 1425 390 100', '1425 570 1425 750 100',
-           '900 1040 900 1040 1',
-           '900 570 900 570 1',
-           '830 300 830 300 1', '960 300 960 300 1',
-           '1314 140 1314 140 1',
-           '905 140 905 140 1', '1005 140 1005 140 1', '1110 140 1110 140 1',
-           '1210 140 1210 140 1']
+cmd_adb = ['370 570 190 570 30', '370 570 550 570 30', '370 570 370 390 30', '370 570 370 750 30',
+           '1425 570 1245 570 30', '1425 570 1605 570 30', '1425 570 1425 390 30', '1425 570 1425 750 30',
+           '900 1040 900 1040 30',
+           '900 570 900 570 30',
+           '830 300 830 300 30', '960 300 960 300 30',
+           '1314 140 1314 140 30',
+           '905 140 905 140 30', '1005 140 1005 140 30', '1110 140 1110 140 30',
+           '1210 140 1210 140 30']
 
 # read sample data
 np_array = arange(quality*quality*600).reshape(quality*600, quality).reshape(600, quality, quality).reshape(600, quality, quality, 1)
@@ -103,6 +103,15 @@ for index_label in range(8):
             labels[index + (index_label - 4) * 100 + 200] = gesture[index_label]
 
 cap = cv2.VideoCapture(0)
+last_result = 0
+index_cmd_left = 0
+index_cmd_right = 0
+index_cmd = 0
+ref_position_x = 0
+ref_position_y = 0
+ref_radius = 0
+count = 0
+last_gesture = 0
 while cap.isOpened():
     # read image
     ret, img = cap.read()
@@ -111,13 +120,13 @@ while cap.isOpened():
     grey1 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(
         grey1,
-        scaleFactor=1.1,
+        scaleFactor=1.05,
         minNeighbors=1,
         minSize=(150, 150),
         flags=cv2.cv.CV_HAAR_SCALE_IMAGE
     )
     for (fx, fy, fw, fh) in faces:
-        cv2.rectangle(imgcy, (fx, fy), (fx + fw, fy + fh), (255, 255, 255), -1)
+        cv2.rectangle(imgcy, (fx, fy * 9 / 10), (fx + fw, fy + fh * 5 / 4), (255, 255, 255), -1)
         face_region = imgcy[fy:fy + fh, fx:fx + fw]
 
     MIN = np.array([0, 48, 80], np.uint8)
@@ -164,62 +173,93 @@ while cap.isOpened():
         radius = int(radius)
         cv2.rectangle(img, (cx - radius, cy - radius), (cx + radius, cy + radius), (0, 0, 255), 0)
         crop_img = thresh2[cy - radius:cy + radius, cx - radius:cx + radius]
-        #cv2.imshow('crop_img', crop_img)
-
-        cX = int(M["m10"] / M["m00"])
-        cY = int(M["m01"] / M["m00"])
-        cv2.circle(img, (cX, cY), 5, (0, 0, 255), -1)
-        # print(cX, cY)
-        # dist = int(cv2.pointPolygonTest(cnt, (cX, cY), True))
-        # cv2.circle(img, (cX, cY), dist, [0, 0, 255], 2)
-
-        # finding convex hull
-        hull = cv2.convexHull(cnt, returnPoints=False)
-
-        # finding convexity defects
-        defects = cv2.convexityDefects(cnt, hull)
-        if defects is not None:
-            count_defects = 0
-
-            # applying Cosine Rule to find angle for all defects (between fingers)
-            # with angle > 90 degrees and ignore defects
-            for i in range(defects.shape[0]):
-                s, e, f, d = defects[i, 0]
-
-                start = tuple(cnt[s][0])
-                end = tuple(cnt[e][0])
-                far = tuple(cnt[f][0])
-
-                # find length of all sides of triangle
-                a = math.sqrt((end[0] - start[0])**2 + (end[1] - start[1])**2)
-                b = math.sqrt((far[0] - start[0])**2 + (far[1] - start[1])**2)
-                c = math.sqrt((end[0] - far[0])**2 + (end[1] - far[1])**2)
-
-                # apply cosine rule here
-                angle = math.acos((b**2 + c**2 - a**2)/(2*b*c)) * 57
-
-                # ignore angles > 90
-                if angle <= 90:
-                    count_defects += 1
-                    cv2.circle(img, far, 5, [255, 0, 0], -1)
-
-            # define actions required
-            if count_defects < 4:
-                pix_array = convert_pix(crop_img)
-                result = classify(pix_array, np_array, labels, 10)
-                index_cmd = 0
-                # print the label
-                cv2.putText(img, result, (5, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
-            else:
-                cv2.putText(img, "Holdon", (5, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
-
-            # show image in windows
-            cv2.imshow('Gesture', img)
-            if index_cmd != -1:
-                cmd = 'adb shell input swipe' + cmd_adb[index_cmd]
-                print(cmd)
+        # cv2.imshow('crop_img', crop_img)
+        if count < 3000:
+            cv2.putText(img, "Put your hand in the position that you want to set as the reference position in 3 seconds", (5, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
+            ref_position_x = cx
+            ref_position_y = cy
+            ref_radius = radius
+        else:
+            if cx - ref_position_x > 40:
+                cmd = 'adb shell input swipe ' + cmd_adb[2]
                 os.system(cmd)
+                cv2.putText(img, command[2], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+            elif cx - ref_position_x < -40:
+                cmd = 'adb shell input swipe ' + cmd_adb[3]
+                os.system(cmd)
+                cv2.putText(img, command[3], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+            elif cy - ref_position_y > 40:
+                cmd = 'adb shell input swipe ' + cmd_adb[1]
+                os.system(cmd)
+                cv2.putText(img, command[1], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+            elif cy - ref_position_y < -40:
+                cmd = 'adb shell input swipe ' + cmd_adb[0]
+                os.system(cmd)
+                cv2.putText(img, command[0], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
 
-    key = cv2.waitKey(10)
+            cX = int(M["m10"] / M["m00"])
+            cY = int(M["m01"] / M["m00"])
+            cv2.circle(img, (cX, cY), 5, (0, 0, 255), -1)
+
+            # finding convex hull
+            hull = cv2.convexHull(cnt, returnPoints=False)
+
+            # finding convexity defects
+            defects = cv2.convexityDefects(cnt, hull)
+            if defects is not None:
+                count_defects = 0
+
+                # applying Cosine Rule to find angle for all defects (between fingers)
+                # with angle > 90 degrees and ignore defects
+                for i in range(defects.shape[0]):
+                    s, e, f, d = defects[i, 0]
+
+                    start = tuple(cnt[s][0])
+                    end = tuple(cnt[e][0])
+                    far = tuple(cnt[f][0])
+
+                    # find length of all sides of triangle
+                    a = math.sqrt((end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2)
+                    b = math.sqrt((far[0] - start[0]) ** 2 + (far[1] - start[1]) ** 2)
+                    c = math.sqrt((end[0] - far[0]) ** 2 + (end[1] - far[1]) ** 2)
+
+                    # apply cosine rule here
+                    angle = math.acos((b ** 2 + c ** 2 - a ** 2) / (2 * b * c)) * 57
+
+                    # ignore angles > 90
+                    if angle <= 90:
+                        count_defects += 1
+                        cv2.circle(img, far, 5, [255, 0, 0], -1)
+
+                # define actions required
+                if count_defects < 4:
+                    pix_array = convert_pix(crop_img)
+                    result = classify(pix_array, np_array, labels, 10)
+                    index_cmd = 0
+                    # print the label
+                    cv2.putText(img, result, (5, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+                    if last_result == "backpalm" and result == "frontpalm":
+                        cv2.putText(img, "Roll Left", (5, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+                    elif last_result == "frontpalm" and result == "backpalm":
+                        cv2.putText(img, "Roll Right", (5, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+                    last_result = result
+                else:
+                    cv2.putText(img, "Holdon", (5, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+                    if radius - ref_radius < -5:
+                        cmd = 'adb shell input swipe ' + cmd_adb[4]
+                        os.system(cmd)
+                        cv2.putText(img, command[4], (5, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+                    elif radius - ref_radius > 5:
+                        cmd = 'adb shell input swipe ' + cmd_adb[5]
+                        os.system(cmd)
+                        cv2.putText(img, command[5], (5, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+                # show image in windows
+                if index_cmd != -1:
+                    cmd = 'adb shell input swipe ' + cmd_adb[index_cmd]
+                    os.system(cmd)
+
+        cv2.imshow('Gesture', img)
+        count = count + 100
+    key = cv2.waitKey(1)
     if key & 0xFF == ord('q'):
         break
