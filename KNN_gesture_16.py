@@ -66,21 +66,18 @@ def classify(cap_array, data_array, label, k):
 
 face_cascade = cv2.CascadeClassifier('/usr/share/opencv/haarcascades/haarcascade_frontalface_default.xml')
 
-gesture = ['clockwise', 'anticlockwise', 'frontpalm', 'backpalm', 'holdon', 'lighta', 'lightb', 'takeoff']
-command = ['Forward', 'Backward', 'Left', 'Right',
-           'Up', 'Down', 'Clockwise', 'Anticlockwise',
-           'LightA', 'LightB',
+gesture = ['anticlockwise', 'clockwise', 'frontpalm', 'backpalm', 'holdon', 'lighta', 'lightb', 'takeoff']
+command = ['anticlockwise', 'clockwise', 'up', 'down',
+           'forward', 'backward', 'left', 'right',
+           'lighta', 'lightb',
            'Roll Left', 'Roll Right',
-           'Takeoff/landing']
+           'takeoff']
 
-cmd_adb = ['370 570 190 570 30', '370 570 550 570 30', '370 570 370 390 30', '370 570 370 750 30',
-           '1425 570 1245 570 30', '1425 570 1605 570 30', '1425 570 1425 390 30', '1425 570 1425 750 30',
-           '900 1040 900 1040 30',
-           '900 570 900 570 30',
-           '830 300 830 300 30', '960 300 960 300 30',
-           '1314 140 1314 140 30',
-           '905 140 905 140 30', '1005 140 1005 140 30', '1110 140 1110 140 30',
-           '1210 140 1210 140 30']
+cmd_adb = ['370 570 190 570 35', '370 570 550 570 35', '370 570 370 390 35', '370 570 370 750 35',
+           '1425 570 1425 390 35', '1425 570 1425 750 35', '1425 570 1245 570 35', '1425 570 1605 570 35',
+           '830 300 830 300 35', '960 300 960 300 35',
+           '1110 140 1110 140 35', '1210 140 1210 140 35',
+           '900 1040 900 1040 35']
 
 # read sample data
 np_array = arange(quality*quality*600).reshape(quality*600, quality).reshape(600, quality, quality).reshape(600, quality, quality, 1)
@@ -174,28 +171,28 @@ while cap.isOpened():
         cv2.rectangle(img, (cx - radius, cy - radius), (cx + radius, cy + radius), (0, 0, 255), 0)
         crop_img = thresh2[cy - radius:cy + radius, cx - radius:cx + radius]
         # cv2.imshow('crop_img', crop_img)
-        if count < 3000:
+        if count < 10000:
             cv2.putText(img, "Put your hand in the position that you want to set as the reference position in 3 seconds", (5, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
             ref_position_x = cx
             ref_position_y = cy
             ref_radius = radius
         else:
             if cx - ref_position_x > 40:
-                cmd = 'adb shell input swipe ' + cmd_adb[2]
-                os.system(cmd)
-                cv2.putText(img, command[2], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
-            elif cx - ref_position_x < -40:
-                cmd = 'adb shell input swipe ' + cmd_adb[3]
-                os.system(cmd)
-                cv2.putText(img, command[3], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
-            elif cy - ref_position_y > 40:
                 cmd = 'adb shell input swipe ' + cmd_adb[1]
                 os.system(cmd)
                 cv2.putText(img, command[1], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
-            elif cy - ref_position_y < -40:
+            elif cx - ref_position_x < -40:
                 cmd = 'adb shell input swipe ' + cmd_adb[0]
                 os.system(cmd)
                 cv2.putText(img, command[0], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+            elif cy - ref_position_y > 40:
+                cmd = 'adb shell input swipe ' + cmd_adb[3]
+                os.system(cmd)
+                cv2.putText(img, command[3], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+            elif cy - ref_position_y < -40:
+                cmd = 'adb shell input swipe ' + cmd_adb[2]
+                os.system(cmd)
+                cv2.putText(img, command[2], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
 
             cX = int(M["m10"] / M["m00"])
             cY = int(M["m01"] / M["m00"])
@@ -238,6 +235,11 @@ while cap.isOpened():
                     index_cmd = 0
                     # print the label
                     cv2.putText(img, result, (5, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+                    for index_cmd in range(13):
+                        if result == command[index_cmd]:
+                            cmd = 'adb shell input swipe ' + cmd_adb[index_cmd]
+                            os.system(cmd)
+                            break
                     if last_result == "backpalm" and result == "frontpalm":
                         cv2.putText(img, "Roll Left", (5, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
                     elif last_result == "frontpalm" and result == "backpalm":
@@ -253,13 +255,9 @@ while cap.isOpened():
                         cmd = 'adb shell input swipe ' + cmd_adb[5]
                         os.system(cmd)
                         cv2.putText(img, command[5], (5, 55), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
-                # show image in windows
-                if index_cmd != -1:
-                    cmd = 'adb shell input swipe ' + cmd_adb[index_cmd]
-                    os.system(cmd)
 
         cv2.imshow('Gesture', img)
         count = count + 100
-    key = cv2.waitKey(1)
+    key = cv2.waitKey(100)
     if key & 0xFF == ord('q'):
         break
