@@ -68,13 +68,13 @@ face_cascade = cv2.CascadeClassifier('/usr/share/opencv/haarcascades/haarcascade
 
 gesture = ['anticlockwise', 'clockwise', 'frontpalm', 'backpalm', 'holdon', 'lighta', 'lightb', 'takeoff']
 command = ['anticlockwise', 'clockwise', 'up', 'down',
-           'forward', 'backward', 'left', 'right',
+           'right', 'left', 'backward', 'forward',
            'lighta', 'lightb',
            'Roll Left', 'Roll Right',
            'takeoff']
 
 cmd_adb = ['370 570 190 570 35', '370 570 550 570 35', '370 570 370 390 35', '370 570 370 750 35',
-           '1425 570 1425 390 35', '1425 570 1425 750 35', '1425 570 1245 570 35', '1425 570 1605 570 35',
+           '1425 570 1605 570 35', '1425 570 1245 570 35', '1425 570 1425 750 35', '1425 570 1425 390 35',
            '830 300 830 300 35', '960 300 960 300 35',
            '1110 140 1110 140 35', '1210 140 1210 140 35',
            '900 1040 900 1040 35']
@@ -178,21 +178,21 @@ while cap.isOpened():
             ref_radius = radius
         else:
             if cx - ref_position_x > 40:
-                cmd = 'adb shell input swipe ' + cmd_adb[1]
+                cmd = 'adb shell input swipe ' + cmd_adb[5]
                 os.system(cmd)
-                cv2.putText(img, command[1], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+                cv2.putText(img, command[5], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
             elif cx - ref_position_x < -40:
-                cmd = 'adb shell input swipe ' + cmd_adb[0]
+                cmd = 'adb shell input swipe ' + cmd_adb[4]
                 os.system(cmd)
-                cv2.putText(img, command[0], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+                cv2.putText(img, command[4], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
             elif cy - ref_position_y > 40:
-                cmd = 'adb shell input swipe ' + cmd_adb[3]
+                cmd = 'adb shell input swipe ' + cmd_adb[7]
                 os.system(cmd)
-                cv2.putText(img, command[3], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+                cv2.putText(img, command[7], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
             elif cy - ref_position_y < -40:
-                cmd = 'adb shell input swipe ' + cmd_adb[2]
+                cmd = 'adb shell input swipe ' + cmd_adb[6]
                 os.system(cmd)
-                cv2.putText(img, command[2], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+                cv2.putText(img, command[6], (5, 35), cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
 
             cX = int(M["m10"] / M["m00"])
             cY = int(M["m01"] / M["m00"])
